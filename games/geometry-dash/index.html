@@ -1,0 +1,171 @@
+<html lang="en" style="height: 100%;"><head>
+
+    <base href="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/">
+<script>
+(function() {
+  try {
+    const _rs = history.replaceState.bind(history);
+    const _ps = history.pushState.bind(history);
+    history.replaceState = function(s,t,u){ try{ return _rs(s,t,u);}catch(e){ if(String(e).includes("SecurityError")&&String(u||"").startsWith("blob:")) return; throw e; } };
+    history.pushState = function(s,t,u){ try{ return _ps(s,t,u);}catch(e){ if(String(e).includes("SecurityError")&&String(u||"").startsWith("blob:")) return; throw e; } };
+  } catch {}
+  const ROOT_BASE = "https://cdn.jsdelivr.net/";
+  const ASSET_DIR_BASE = "https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/";
+  const JSDELIVR_GH_BASE = "https://cdn.jsdelivr.net/gh/";
+  const STATICALLY_GH_BASE = "https://cdn.jsdelivr.net/gh/";
+
+  function resolve(url) {
+    if (typeof url !== 'string' || !url) return url;
+    if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('//')) return url;
+    let p = url;
+    if (p.startsWith('/')) {
+      p = p.slice(1);
+      if (p.startsWith('next/')) return ASSET_DIR_BASE + p;
+      if (p.startsWith('static/games/')) p = p.replace('static/games/', '');
+      return ROOT_BASE + p;
+    }
+    return ASSET_DIR_BASE + url;
+  }
+
+  function postNavigate(url) {
+    try { parent.postMessage({ __yukios: 'navigate', url }, '*'); } catch {}
+  }
+
+  const createElement = document.createElement.bind(document);
+  document.createElement = function(tag) {
+    const el = createElement(tag);
+    const tagName = tag.toLowerCase();
+    if (tagName === 'script') {
+      let src = '';
+      Object.defineProperty(el, 'src', {
+        get() { return src; },
+        set(val) {
+          src = resolve(val);
+        },
+        configurable: true
+      });
+    } else if (tagName === 'iframe' || tagName === 'frame') {
+      Object.defineProperty(el, 'src', {
+        get() { return el.getAttribute('src'); },
+        set(val) { el.setAttribute('src', resolve(val)); },
+        configurable: true
+      });
+    }
+    return el;
+  };
+
+  const setAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function(name, value) {
+    const tagName = this.tagName.toLowerCase();
+    const attrName = name.toLowerCase();
+    if ((tagName === 'iframe' || tagName === 'frame' || tagName === 'script' || tagName === 'img') && attrName === 'src') {
+      value = resolve(value);
+    } else if ((tagName === 'link' || tagName === 'a') && attrName === 'href') {
+      value = resolve(value);
+    }
+    return setAttribute.call(this, name, value);
+  };
+
+  document.addEventListener('click', function(e) {
+    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    const rawHref = a.getAttribute('href');
+    if (!rawHref || rawHref[0] === '#' || /^javascript:/i.test(rawHref)) return;
+    if (typeof url === 'string' && (url.startsWith(JSDELIVR_GH_BASE) || url.startsWith(STATICALLY_GH_BASE) || url.startsWith('blob:'))) {
+      e.preventDefault();
+      postNavigate(url);
+    }
+  }, true);
+
+  document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (!form || !form.getAttribute) return;
+    const action = form.getAttribute('action') || document.baseURI;
+    let url = null;
+    try { url = new URL(action, document.baseURI).href; } catch { return; }
+    if (typeof url === 'string' && (url.startsWith(JSDELIVR_GH_BASE) || url.startsWith(STATICALLY_GH_BASE) || url.startsWith('blob:'))) {
+      e.preventDefault();
+      postNavigate(url);
+    }
+  }, true);
+})();
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Web Dashers</title>
+    <link rel="icon" type="image/x-icon" href="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/favicon.ico">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/style.css">
+    <meta name="description" content="Web Dashers is a fan-made browser mod of the Geometry Dash Web Demo. It features the main levels, a built-in level creator, and a level search to play online levels. The project is actively in development, with more features and updates planned.">
+    <meta name="theme-color" content="#C1FB3D">
+
+    <!-- - Embeds - -->
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://web-dashers.github.io/">
+    <meta property="og:title" content="Web Dashers">
+    <meta property="og:description" content="Web Dashers is a fan-made browser mod of the Geometry Dash Web Demo. It features the main levels, a built-in level creator, and a level search to play online levels. The project is actively in development, with more features and updates planned.">
+    <meta property="og:image" content="https://web-dashers.github.io/wd_assets/thumbnail_1024.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://web-dashers.github.io/">
+    <meta property="twitter:title" content="Web Dashers">
+    <meta property="twitter:description" content="Web Dashers is a fan-made browser mod of the Geometry Dash Web Demo. It features the main levels, a built-in level creator, and an evel search to play online levels. The project is actively in development, with more features and updates planned.">
+    <meta property="twitter:image" content="https://web-dashers.github.io/wd_assets/thumbnail_1024.png">
+
+    <!-- Libraries and stuff -->
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/game/allObjects.js?latest"></script>
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/game/allLevels.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/libs/phaser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/libs/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/utils/cache-manager.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/api/GDapiWrapper.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/utils/api-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/api/account-api.js"></script>
+    <!-- worker -->
+    <script>
+        window._gdProxyUrl = "https://gd-proxy.gmdc.workers.dev";
+    </script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/utils/config.js"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/triggers.js"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/level.js?latest"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/player.js?latehkjthykhst"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/audio.js"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/loading-screen.js"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/level-editor.js?latest"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/game-scene.js?latest3"></script>
+    <script defer="" src="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@9f086b9cd3297b9ab9625cf49ccb602a547ecae6/assets/scripts/core/main.js"></script>
+    <script>
+        new ResizeObserver(() => {
+            window.dispatchEvent(new Event('resize'));
+        }).observe(document.documentElement);
+
+        document.oncontextmenu = (event) => {
+            event.preventDefault();
+        };
+    </script>
+<style id="custom-cursor" type="text/css">body button, body [type='button'], body input[type='reset'], body input[type='submit'], body [role="button"], ::-webkit-search-cancel-button, ::-webkit-search-decoration, ::-webkit-scrollbar-button, ::-webkit-file-upload-button, [role^=button], .cc_pointer, [type="search"]::-webkit-search-cancel-button, a, select, [type="search"]::-webkit-search-decoration, .paper-button, .ytp-progress-bar-container, input[type=submit], :link, :visited, a > *, img,  ::-webkit-scrollbar-button, .ogdlpmhglpejoiomcodnpjnfgcpmgale_pointer, ::-webkit-file-upload-button, .ytp-volume-panel, #myogdlpmhglpejoiomcodnpjnfgcpmgale .icon, body .custom-cursor-on-hover {cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE3UlEQVR4AbRWXUwcVRQ+M7vssj/87AZallJIGywGa1mgVnlRrFFTWlKXH2v7YGrT1CYmpq1pog++mPjSNPrig4828cFIAkhMH0xs0kTxr/xUSBGlCGVhd2X/2Z2Znbkz47mz3e0uMLClMLnn3nvOPT/fnXPunWFB56mBXovb1vV5e9X50VZbz41W6KzQUX0isS6AChv59Fhb76VzJ680n+64+LaxzP7tE0XSMdYFYC8qO8EFWPDO+WCXsxr27TnwciO023X8bFmsC4BlDEXUa2ApCAKfAovZCqylzEFl20m6AGSVRDOBIqEYsCwLRpUxwDY/ugBy4yTiyVx2W+e6AGRZykalKdjWqDnOdAGooEoZPTElgdFgAllRSzKy7Rp1AcgKEXODyLICBgNzrs1x5vZhe+83bnP3U7nrW53rAlBUmct1SkQCRw6+dOndno9ePPvG5VNOh/NWq73n447a9yOd+64k3RbPNdRHf+3GRmg04byghgYAdDduq+e9FuvJTrTSZAqo9EE23SSJQFmRC++FABQxFmhqeL7G3fDCJ28du1je+9p5a/tzHVdbrJ6h43VNkYb6E/FmW9d1tGSQNmzsoWLPUbOpeNJpqf7CVXpgqNXW/TW1YBkmJj8qA+A5AcLBKCz7Q/DXxAzImCAxysLs9DwQBOduaIOqyr3H33z9gt3zyllz26GjHzRbu+iGqDtdYosMhg/LLVUmh7UK6isPw+6S/aebTN3PrLZQFCUrUrAe/vMF6TuCSCiOgO4jCBkUkYF//17QLq79e54G3H5z1khnwqrAmBlUNbLptFXaa4E1yh5VhQQWoo5ZvjgliDAzNQcyURBQDKYnERAh+Uo6HAIgN0WZB5HwmkpZcSWYjVYPwwBREYUmxM5kKAaWMeBs/UZTlFkhkgw+73KG3XBkicz0pUgSUoTDV6oAwzDgsLha0MqlqDIO6eYqrQerqTTNYM8Ai7os6D2F3p7shNA/K5DkiKIqwD+8/CrsNaACvJoLYHWgXSV14LRWrxY/Nq9tQQHSR9OQFGOag3LLbjAyRqdKYWiSwro658GsIlEkwE1FswKdiQaApkEgCUim0vo01w6rC6/ewgop49tmKs9MCx41ADQNWAcjKSxEStS6wlZDhx0nDQCNooCspWFFCFMW8+vSilJjdrDLAsikIS6EMLAKBrYISot35D80bztshpvA00DTIMkpPA0rmtjAGrVxJ7ssABokk4YoX9glQm30SMZTwDBMeid6SijPA5BJQyIVAfomcH3LLSHiiVJhajMHeQAepuE3FS+lUNK3me2G6+HEYpDlH9zZUAkX8wAgD0Qhn3FSDOJCEK/n9PeByh+HwsklWBEjX47AiLSZ3RoAd/nBvoQYvkWwGAPxOe1EbOYkd50oItwPj3k5jlzLlevN1wBARVUEciYi+GdoHoNJL4oKa/TzPRUY5rhU7NQ0DG1agNTregBgMjkUkGS1PcItTvrjsxAuoB5o4f659GMokvB3jPPfDVPnhdC6AKjhXb5v0Z+EI1HOd/2f4B/iQmRqzbdBlAVYTizAPf9P0pj3h6/wW/LsmDBwm9oXSroAqAMv9PGj/MDVhLxSOxsavzw8PzDw+4PvR+8s3Bz/ZW5w+Ne5wRv3Aj9f8HHze0e5/ndGuP41R4f62Yj+BwAA//+a4ihaAAAABklEQVQDAH75KTjr09PrAAAAAElFTkSuQmCC") 8 0, pointer !important;} html,body,body select,body .custom-cursor-default-hover {cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFLUlEQVR4AbxWa0xbVRz/t9twdAyYCtkYMubEMF14NRDH2FzAIDh5FLKJYbK5ZNkHUUyMmfplix907pNTPxlNNFniBxkQlsgGm2MZOBeHBYTyKqNAodDR9ra39/04nnsTmpY+eI2dnHPuefwfv3v+v/PQZm8zXHk94Yw9W1f5XUaMIRGectJu1kTV6VPeTCjUV3+4M27XeI6u6mIGFG97Wji0MhKnHYQdRCIKCtIrYoryKi7sSEx+lKMzfKAH/ZaNBqKVZOk2wdhVPw47AbInBsryTycW6Et+iHo2fTA7urIaT2pw2ZCsBY2mk2DmASFZdSAKIkyP2yBe8wLUltSn6V893Ji7/XhXVnTVIdiApAUa3eVESqIFb4B5t4uEcZMV0pNy4b2yhvz9L2Z05eiqr2U9U50WILjOjrYXWgheYo1ezhVkSpZkmJ6wwZzFBUdzyqHmrXNVKbv3DGbrqr7XQ9nzQQprGNCqOkjuJOh5tRmqokgahvrMIFGboarozJbyo7X1O5KSzHgLn0+Gg9GwjqQCkDWaToongBOZsKYQQjBnfQym3jFI2J4MJ4/VxxXmll9KfS5tKGuroRYrromoKgAvzdwTJFYKFQZsOCBzLA9jJgtYxmZg/94cOFXx8Z68jCNX82LfeZC51VAQILyCjgrADG0ehQckG8yDcDZcDjcMGkfBZSfhUGYx1JU15L6yL/Me5kdjxtayveH0lo6rAJRBBKjDyzlAkDilu6KikHRmcg4Ge0cBCZugtOAE1JSeq07ZuW84J9pw+SUojYVlkg+ALIsdnMTAalZh0TaHw2IesuDQTEC8LgGOF5+NKjl84tPdibvGsnSGs1jO5we3A7JvQmDN3RgAtRIeBFjw63gIr0pSq8UGaSkH4FRZQ2J+ZtGPeXE1D7OjDQf9RH1NHwATmHhR4v6keDesJgw+S34Nu82h8sPrYeC1jEKoe/uj7JdTD3TjsFxden74AKj6CDr4NYZB1ferBF6E8eFJUDgSGxMPx468qzG8cbp2U+y2Zj8xCAAgyWI7L9FAck5/mXW152YegxIa5RyhOQoQyAGHTQCAfq51hBeZKVagIh5Kq0GkcOp+3y34tfVb542uxq85D2Hw1w8AoExISOoQZR5Idu2rICMJbJ5xMFpvUkbrjV8GpntKpuasSUa66Yt+aKcUP4slCAC+l2/xmAce1oGbaFFuRV+Ej+t5cgJ6pv5YGFv457NZly3pX7rl/T7q2k0ztIU8YIIAaBkRA6CRsgrMkis6EgpGIKF/9o4wMv/gktdjTzVSzd9gp55IOspcEIAeuL6At2Gf8jcedkGRWbbYvZN4udsH3KQ918g0f750mSMZCAKgCMuyfFuQWCDxG0HG8VTGQhWEl9zi/A+G5+7/ZvOiPKPQ3BdKLtJYSABIA3cUHiD8TCPDXFAIOzcv9MCk03QZ/3WtFX4P2F6RnPrPhQTA0867GICoCLrDhOGRw4iZbv6yl2k6j+VWx1assJhDAjBBpxeH4CHCK8BiIvo/VGQ8ZnH0g9UzesVIN19YNLTWb0gAijGEUCd+IyhNWPBagRdZcOFn2/D83zBNDLX0Us2fqJPrrMICwETsxKugmlcuKItzAGbdZnDQ1n4NLShPMEmdXGcVFgDLob8EifE5kfFucLPzTlHiK/FWpdfp16ceFsAItJKCxKnnAcKMd7N2WRS4k/3s9Qmf9hNohAWg2JZB6hZkDmiBwJcT/ZWRa2lTxp9kiQhAI276iWBmh0jO+bORbrq4FsfL6fwPAAD//1KqEsQAAAAGSURBVAMAO5Csqy/tJbsAAAAASUVORK5CYII=") 1 0, auto !important;}</style>
+<style id="canvas-layout-fix">
+  html, body {
+    width: 100% !important; height: 100% !important;
+    margin: 0 !important; padding: 0 !important;
+    overflow: hidden !important; background: #000 !important;
+  }
+  body { position: fixed !important; inset: 0 !important; }
+  body > canvas {
+    display: block !important;
+    position: fixed !important;
+    left: 50% !important; top: 50% !important;
+    width: min(100vw, 177.7778vh) !important;
+    height: min(100vh, 56.25vw) !important;
+    margin: 0 !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: 100vw !important; max-height: 100vh !important;
+  }
+</style>
+</head>
+
+<body style="height: 100%;">
+
+
+<canvas width="1138" height="640" style="width: 1520.3px; height: 855px; margin-left: 178px; margin-top: 0px;"></canvas></body></html>
