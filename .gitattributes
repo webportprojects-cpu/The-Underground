@@ -1,0 +1,3 @@
+*.win binary
+*.data binary
+*.json text
