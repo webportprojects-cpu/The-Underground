@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Underground</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta name="description" content="The Underground — a purple-themed arcade for indie games, fan favorites, and the community.">
+    <meta name="theme-color" content="#090711">
+    <!-- Socket.IO client library for real-time communication -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background: linear-gradient(135deg, #0a0a2a, #1a002a);
+            color: #ff00ff;
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(255, 0, 255, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 80% 70%, rgba(255, 0, 255, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 40% 40%, rgba(138, 43, 226, 0.05) 0%, transparent 15%),
+                radial-gradient(circle at 60% 60%, rgba(138, 43, 226, 0.05) 0%, transparent 15%);
+            animation: float 20s ease-in-out infinite;
+            pointer-events: none;
+            z-index: -2;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255, 0, 255, 0.05) 2px,
+                rgba(255, 0, 255, 0.05) 4px
+            );
+            pointer-events: none;
+            z-index: -1;
+            animation: gridMove 10s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 100px 100px; }
+        }
+
+        a {
+            color: #ff00ff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        button, input, textarea { font: inherit; }
+        button:focus-visible, input:focus-visible, textarea:focus-visible {
+            outline: 2px solid #fff; outline-offset: 3px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1500;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            border-bottom: 2px solid #ff00ff;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #ff00ff, transparent);
+            animation: sweep 2s linear infinite;
+        }
+
+        @keyframes sweep {
+            0% { background-position: -200px 0; }
+            100% { background-position: 200px 0; }
+        }
+
+        h1 {
+            font-size: 4rem;
+            letter-spacing: 3px;
+            text-shadow:
+                0 0 10px #ff00ff,
+                0 0 20px #ff00ff,
+                0 0 30px #ff00ff;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #ff00ff, #8a2be2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tagline {
+            font-size: 1.4rem;
+            font-style: italic;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+            letter-spacing: 1px;
+        }
+
+        .search-container {
+            text-align: center;
+            margin: 30px 0;
+            padding: 0 20px;
+        }
+
+        .search-bar {
+            padding: 15px;
+            width: 100%;
+            max-width: 500px;
+            background: rgba(20, 0, 20, 0.7);
+            border: 2px solid #ff00ff;
+            border-radius: 8px;
+            color: #ff00ff;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            outline: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .search-bar::placeholder {
+            color: rgba(255, 0, 255, 0.5);
+        }
+
+        .search-bar:focus {
+            border-color: #ff00ff;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+            background: rgba(30, 0, 30, 0.8);
+        }
+
+        .comment-section {
+            background: rgba(20, 0, 20, 0.5);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid #ff00ff;
+            margin-top: 40px;
+            backdrop-filter: blur(10px);
+        }
+
+        .comment-section h2 {
+            color: #ff00ff;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .comment-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .comment-list {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background: rgba(40, 0, 40, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 0, 255, 0.2);
+        }
+
+        .comment-item {
+            background: rgba(255, 0, 255, 0.1);
+            border-left: 3px solid #ff00ff;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .comment-item p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .comment-item .comment-date {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+
+        /* Chat Section Styles */
+        .chat-section {
+            background: rgba(20, 0, 20, 0.5);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid #ff00ff;
+            margin-top: 40px;
+            backdrop-filter: blur(10px);
+        }
+
+        .chat-section h2 {
+            color: #ff00ff;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 0, 255, 0.2);
+        }
+
+        .user-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ff00ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+            font-family: 'VT323', monospace;
+        }
+
+        .auth-toggle-btn {
+            background: rgba(40, 0, 40, 0.8);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
+            padding: 10px 20px;
+            font-family: 'VT323', monospace;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            letter-spacing: 1px;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .auth-toggle-btn:hover {
+            background: linear-gradient(135deg, rgba(60, 0, 60, 0.9), rgba(80, 0, 80, 0.9));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 0, 255, 0.3);
+        }
+
+        .auth-toggle-btn:active {
+            transform: translateY(0px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            background: rgba(20, 0, 20, 0.9);
+            margin: 10% auto;
+            padding: 25px;
+            border: 2px solid #ff00ff;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 12px;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+
+        .close-modal {
+            color: #ff00ff;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal:hover,
+        .close-modal:focus {
+            color: #ff66ff;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ff00ff;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(30, 0, 30, 0.7);
+            border: 1px solid #ff00ff;
+            border-radius: 6px;
+            color: #ff00ff;
+            font-family: 'VT323', monospace;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            border-color: #ff66ff;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.4);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 0, 255, 0.5);
+        }
+
+        #auth-switch {
+            color: #ff00ff;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        #auth-switch:hover {
+            color: #ff66ff;
+        }
+
+        .chat-interface {
+            display: flex;
+            height: 500px;
+            gap: 20px;
+        }
+
+        .chat-sidebar {
+            background: rgba(30, 0, 30, 0.6);
+            border-radius: 12px;
+            padding: 20px;
+            width: 200px;
+            border: 1px solid rgba(255, 0, 255, 0.2);
+        }
+
+        .chat-sidebar h3 {
+            color: #ff00ff;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+
+        .channel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .channel {
+            background: rgba(40, 0, 40, 0.5);
+            border: 1px solid rgba(255, 0, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #ff00ff;
+            font-family: 'VT323', monospace;
+        }
+
+        .channel:hover {
+            background: rgba(60, 0, 60, 0.6);
+            transform: translateX(5px);
+        }
+
+        .channel.active {
+            background: linear-gradient(135deg, rgba(60, 0, 60, 0.8), rgba(80, 0, 80, 0.8));
+            border-color: #ff00ff;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: rgba(40, 0, 40, 0.3);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 0, 255, 0.2);
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ff00ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+            font-family: 'VT323', monospace;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            background: rgba(255, 0, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .message-username {
+            font-weight: bold;
+            color: #ff00ff;
+        }
+
+        .message-time {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .message-text {
+            line-height: 1.4;
+            color: #fff;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 12px;
+            background: rgba(30, 0, 30, 0.7);
+            border: 1px solid #ff00ff;
+            border-radius: 6px;
+            color: #ff00ff;
+            font-family: 'VT323', monospace;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        #chat-input::placeholder {
+            color: rgba(255, 0, 255, 0.5);
+        }
+
+        #chat-input:focus {
+            border-color: #ff66ff;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.4);
+        }
+
+        #send-btn {
+            background: rgba(40, 0, 40, 0.8);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
+            padding: 12px 20px;
+            font-family: 'VT323', monospace;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+        }
+
+        #send-btn:hover {
+            background: linear-gradient(135deg, rgba(60, 0, 60, 0.9), rgba(80, 0, 80, 0.9));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 0, 255, 0.3);
+        }
+
+        #send-btn:active {
+            transform: translateY(0px);
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+
+        .game-card {
+            background: rgba(20, 0, 20, 0.7);
+            border: 1px solid #ff00ff;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(255, 0, 255, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            transition: transform 0.6s ease;
+        }
+
+        .game-card:hover {
+            background: rgba(30, 0, 30, 0.8);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow:
+                0 15px 35px rgba(255, 0, 255, 0.3),
+                inset 0 0 20px rgba(255, 0, 255, 0.1);
+            border-color: #ff00ff;
+        }
+
+        .game-card:hover::before {
+            transform: rotate(45deg) translateX(100%);
+        }
+
+        .game-card h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #ff00ff;
+            text-shadow: 0 0 8px #ff00ff;
+            position: relative;
+            z-index: 2;
+        }
+
+        .game-card p {
+            margin-bottom: 25px;
+            line-height: 1.7;
+            opacity: 0.95;
+            position: relative;
+            z-index: 2;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(40, 0, 40, 0.8), rgba(60, 0, 60, 0.8));
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
+            padding: 14px 32px;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            position: relative;
+            z-index: 2;
+            letter-spacing: 1px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 0, 255, 0.2),
+                transparent
+            );
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, rgba(60, 0, 60, 0.9), rgba(80, 0, 80, 0.9));
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 0, 255, 0.4);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(0px);
+        }
+
+        #game-container {
+            position: relative;
+            border-radius: 16px;
+            overflow: auto;
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
+            border: 2px solid #ff00ff;
+            margin-top: 30px;
+            background: #000;
+            aspect-ratio: 16 / 9;
+            width: 100%;
+            min-height: 280px;
+            max-width: 800px;
+            display: none;
+        }
+
+        #game-container.active {
+            display: block;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #game-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #000;
+            display: block;
+        }
+
+        .game-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 0, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .info-section {
+            background: rgba(20, 0, 20, 0.5);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid #ff00ff;
+            margin-top: 40px;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-section h2 {
+            color: #ff00ff;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 2.2rem;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .info-section p {
+            line-height: 1.8;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            border-top: 1px solid #ff00ff;
+            margin-top: 50px;
+            opacity: 0.8;
+            font-size: 1rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .disclaimer {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(40, 0, 40, 0.6);
+            border: 1px solid #8b008b;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+            .games-grid {
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            }
+
+            h1 {
+                font-size: 3rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+                letter-spacing: 2px;
+            }
+
+            .tagline {
+                font-size: 1.2rem;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .game-card {
+                padding: 20px;
+            }
+
+            .info-section {
+                padding: 20px;
+                margin-top: 30px;
+            }
+
+            .control-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .btn {
+                padding: 12px 24px;
+                font-size: 1rem;
+            }
+
+            .search-bar {
+                padding: 12px;
+                font-size: 1rem;
+            }
+
+            .comment-section textarea {
+                width: 100%;
+                min-height: 100px;
+                padding: 12px;
+                background: rgba(20, 0, 20, 0.7);
+                border: 2px solid #ff00ff;
+                border-radius: 8px;
+                color: #ff00ff;
+                font-family: 'VT323', monospace;
+                font-size: 1rem;
+                outline: none;
+                resize: vertical;
+            }
+
+
+            .comment-section .btn {
+                margin-top: 15px;
+                padding: 12px 24px;
+                font-size: 1rem;
+            }
+
+            .comment-button-group {
+                display: flex;
+                gap: 10px;
+                margin-top: 15px;
+            }
+
+            .comment-button-group .btn {
+                flex: 1;
+                margin-top: 0;
+            }
+
+
+            .comment-votes {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 1.1rem;
+                margin-bottom: 4px;
+            }
+
+            .vote-button {
+                background: rgba(255, 0, 255, 0.1);
+                border: 1px solid #ff00ff;
+                color: #ff00ff;
+                cursor: pointer;
+                font-size: 1.2rem;
+                padding: 6px 10px;
+                border-radius: 50%;
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                font-weight: bold;
+            }
+
+            .vote-button:hover {
+                background: rgba(255, 0, 255, 0.2);
+                transform: scale(1.1);
+            }
+
+            .vote-button.up:hover {
+                background: rgba(0, 255, 0, 0.2);
+                border-color: #00ff00;
+                color: #00ff00;
+            }
+
+            .vote-button.down:hover {
+                background: rgba(255, 0, 0, 0.2);
+                border-color: #ff0000;
+                color: #ff0000;
+            }
+
+            .vote-button:active {
+                transform: scale(0.95);
+            }
+
+            .vote-count {
+                font-family: 'VT323', monospace;
+                min-width: 50px;
+                text-align: center;
+                font-size: 1rem;
+                color: #ff00ff;
+                background: rgba(255, 0, 255, 0.1);
+                padding: 2px 6px;
+                border-radius: 4px;
+                border: 1px solid #ff00ff;
+            }
+
+
+            .comment-date {
+                font-size: 0.75rem;
+                opacity: 0.7;
+                align-self: flex-end;
+                font-style: italic;
+            }
+
+            .chat-section {
+                padding: 15px;
+            }
+
+            .chat-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+
+            .chat-sidebar {
+                width: 100%;
+            }
+
+            .chat-main {
+                width: 100%;
+            }
+
+            .user-search {
+                margin-bottom: 15px;
+            }
+
+            #user-search-input {
+                width: 100%;
+                padding: 10px;
+                background: rgba(20, 0, 20, 0.7);
+                border: 2px solid #ff00ff;
+                border-radius: 8px;
+                color: #ff00ff;
+                font-family: 'VT323', monospace;
+                font-size: 1rem;
+                outline: none;
+            }
+
+            #user-search-input::placeholder {
+                color: rgba(255, 0, 255, 0.5);
+            }
+
+            .user-search-results {
+                max-height: 150px;
+                overflow-y: auto;
+                margin-top: 5px;
+                border: 1px solid #ff00ff;
+                border-radius: 4px;
+                background-color: rgba(255, 0, 255, 0.1);
+            }
+
+            .user-search-item {
+                padding: 8px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid rgba(255, 0, 255, 0.2);
+            }
+
+            .user-search-item:hover {
+                background-color: rgba(255, 0, 255, 0.2);
+            }
+
+            .user-search-item:last-child {
+                border-bottom: none;
+            }
+
+
+            .channel[data-channel^="dm_"] {
+                font-family: 'VT323', monospace;
+            }
+
+            .channel[data-channel^="dm_"]:before {
+                content: '@';
+                color: #00ff00;
+                margin-right: 5px;
+            }
+        }
+
+        /* THE UNDERGROUND — refreshed interface */
+        :root {
+            color-scheme: dark;
+            --bg: #090711;
+            --panel: #13101f;
+            --panel-raised: #1b152b;
+            --purple: #a78bfa;
+            --purple-bright: #c4b5fd;
+            --pink: #f0abfc;
+            --muted: #aaa4bc;
+            --line: rgba(196,181,253,.18);
+            --radius: 18px;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            background:
+              radial-gradient(ellipse at 50% -20%, rgba(124,58,237,.23), transparent 55%),
+              radial-gradient(ellipse at 100% 55%, rgba(91,33,182,.10), transparent 42%),
+              var(--bg);
+            color: #f4f0ff;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.55;
+        }
+        body::before { opacity: .45; animation: none; }
+        body::after { opacity: .12; animation: none; }
+        .container { max-width: 1440px; padding: 24px clamp(16px, 3vw, 42px) 48px; z-index: 1; }
+        header {
+            text-align: left; padding: 24px 0 32px; margin-bottom: 26px;
+            border-bottom: 1px solid var(--line);
+        }
+        header::before { height: 2px; opacity: .7; }
+        h1 {
+            font-family: 'VT323', monospace; font-size: clamp(3.4rem, 7vw, 6rem);
+            line-height: .95; letter-spacing: 1px; margin: 0;
+            background: linear-gradient(110deg, #fff 10%, #d8b4fe 48%, #a78bfa 90%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: none;
+        }
+        header::after {
+            content: " ONLY REAL GAMES WILL BE ADDED. NOT RANDOM CLICKERS OR ANYTHING LIKE THAT UNLESS REQUESTED TO OWNER";
+            display: block; margin-top: 14px; color: var(--muted);
+            font-size: .75rem; font-weight: 800; letter-spacing: .2em;
+        }
+        .search-container {
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 14px; padding: 0; margin: 28px 0 18px;
+            text-align: left;
+        }
+        .search-bar {
+            max-width: 620px; flex: 1 1 280px; padding: 14px 18px;
+            background: rgba(19,16,31,.88); border: 1px solid var(--line);
+            border-radius: 12px; color: #fff; font: inherit; font-size: .95rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+        }
+        .search-bar::placeholder, #chat-input::placeholder, .form-group input::placeholder { color: #817991; }
+        .search-bar:focus { border-color: var(--purple); box-shadow: 0 0 0 4px rgba(167,139,250,.12); background: var(--panel); }
+        .games-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin: 8px 0 18px; }
+        .games-toolbar h2 { font-size: 1.05rem; margin:0; font-weight:800; letter-spacing:-.02em; }
+        .games-toolbar p { color:var(--muted); font-size:.85rem; margin:0; }
+        .games-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr)); gap:16px; margin-bottom:36px; }
+        .game-card {
+            display:flex; flex-direction:column; align-items:flex-start; text-align:left;
+            min-height: 270px; padding: 23px; border:1px solid var(--line);
+            border-radius:var(--radius); background:linear-gradient(155deg, rgba(28,22,44,.96), rgba(16,13,26,.98));
+            box-shadow:0 8px 28px rgba(0,0,0,.12); backdrop-filter:blur(12px);
+            transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+        .game-card::before { display:none; }
+        .game-card::after {
+            content:""; width:34px; height:3px; border-radius:9px;
+            background:linear-gradient(90deg,var(--purple),var(--pink)); order:-1; margin-bottom:18px;
+        }
+        .game-card:hover {
+            background:linear-gradient(155deg, rgba(35,27,55,.98), rgba(18,14,30,.99));
+            transform:translateY(-4px); border-color:rgba(196,181,253,.55);
+            box-shadow:0 18px 38px rgba(0,0,0,.25), 0 0 0 1px rgba(167,139,250,.06);
+        }
+        .game-card h2 { color:#f6f1ff; font-size:1.35rem; line-height:1.2; margin:0 0 10px; text-shadow:none; letter-spacing:-.025em; z-index:2; }
+        .game-card p { color:var(--muted); font-size:.9rem; line-height:1.65; margin:0 0 22px; flex:1; z-index:2; }
+        .btn, .auth-toggle-btn, #send-btn {
+            display:inline-flex; align-items:center; justify-content:center; gap:8px;
+            background:linear-gradient(135deg,#8b5cf6,#6d28d9); border:1px solid rgba(221,214,254,.22);
+            color:#fff; padding:11px 16px; min-height:44px; border-radius:10px;
+            font:inherit; font-size:.9rem; font-weight:750; letter-spacing:0;
+            text-decoration:none; box-shadow:0 5px 14px rgba(109,40,217,.18);
+            transition:transform .18s ease, filter .18s ease, box-shadow .18s ease;
+        }
+        .btn::before { display:none; }
+        .btn:hover, .auth-toggle-btn:hover, #send-btn:hover {
+            background:linear-gradient(135deg,#a78bfa,#7c3aed); transform:translateY(-1px);
+            box-shadow:0 8px 20px rgba(139,92,246,.25); text-decoration:none;
+        }
+        .btn:active, .auth-toggle-btn:active, #send-btn:active { transform:translateY(0); }
+        .info-section, .comment-section, .chat-section {
+            padding:clamp(20px,3vw,32px); border:1px solid var(--line);
+            border-radius:var(--radius); margin-top:22px;
+            background:linear-gradient(145deg,rgba(25,20,39,.95),rgba(15,12,24,.95));
+            backdrop-filter:blur(14px); box-shadow:0 12px 32px rgba(0,0,0,.12);
+        }
+        .info-section h2, .comment-section h2, .chat-section h2 {
+            color:#f4edff; text-align:left; text-shadow:none; font-size:1.45rem;
+            margin-bottom:12px; letter-spacing:-.025em;
+        }
+        .info-section p { color:var(--muted); font-size:.96rem; line-height:1.8; margin:8px 0; }
+        #game-container {
+            max-width:none; width:100%; min-height:0; aspect-ratio:16/9;
+            margin:24px 0 32px; border:1px solid rgba(196,181,253,.4);
+            border-radius:16px; box-shadow:0 18px 55px rgba(0,0,0,.4);
+            background:#050408;
+        }
+        #game-container.active { display:block; }
+        #game-frame { min-height: min(72vh, 760px); }
+        .game-controls { top:12px; right:12px; }
+        .control-btn { background:rgba(13,10,21,.88); border:1px solid var(--line); color:#fff; backdrop-filter:blur(8px); }
+        .comment-list, .chat-messages { background:rgba(7,5,13,.5); border:1px solid var(--line); border-radius:12px; }
+        .comment-item, .message-content { background:rgba(167,139,250,.08); border-color:var(--purple); border-radius:10px; }
+        .comment-item { border-left-width:3px; }
+        .comment-section textarea, #chat-input, .form-group input {
+            background:rgba(7,5,13,.65); border:1px solid var(--line); border-radius:10px;
+            color:#fff; font:inherit; padding:13px 15px;
+        }
+        .comment-section textarea:focus, #chat-input:focus, .form-group input:focus {
+            border-color:var(--purple); box-shadow:0 0 0 4px rgba(167,139,250,.12); outline:none;
+        }
+        .disclaimer { background:rgba(167,139,250,.06); border:1px solid var(--line); border-radius:12px; color:var(--muted); font-size:.85rem; }
+        .footer { border-color:var(--line); color:var(--muted); font-size:.82rem; }
+        .modal { background:rgba(4,3,9,.78); backdrop-filter:blur(10px); }
+        .modal-content { margin: min(10vh,80px) auto; background:#151020; border:1px solid rgba(196,181,253,.35); border-radius:18px; box-shadow:0 24px 80px #0008; }
+        .form-group label { color:#ddd3f8; }
+        .close-modal { color:#d8b4fe; }
+        .empty-state { grid-column:1/-1; padding:42px 20px; border:1px dashed var(--line); border-radius:16px; text-align:center; color:var(--muted); }
+        .empty-state strong { display:block; color:#f4edff; font-size:1.1rem; margin-bottom:6px; }
+        a { color:var(--purple-bright); }
+        a:hover { color:#fff; }
+        button, a, input, textarea { -webkit-tap-highlight-color:transparent; }
+        button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px solid #c4b5fd; outline-offset:3px; }
+        @media (max-width:768px) {
+            .container { padding:16px 14px 32px; }
+            header { padding:20px 0 26px; }
+            .games-grid { grid-template-columns:1fr; gap:12px; }
+            .game-card { min-height:unset; padding:20px; }
+            .chat-interface { height:auto; min-height:500px; flex-direction:column; }
+            .chat-sidebar { width:100%; }
+            .channel-list { flex-direction:row; flex-wrap:wrap; }
+            .channel { flex:1 1 120px; }
+            #game-frame { min-height:65vh; }
+            .comment-button-group { display:flex; flex-wrap:wrap; gap:10px; }
+            .comment-button-group .btn { flex:1; }
+        }
+
+        /* Game artwork is configured directly on each .game-card using its data-image attribute. */
+        .game-card-image { display:block; order:-2; width:calc(100% + 46px); max-width:none; height:160px; margin:-23px -23px 20px; object-fit:cover; background:rgba(255,255,255,.035); border-bottom:1px solid var(--line); }
+        .game-card.has-artwork { padding-top:23px; }
+        .game-card.has-artwork .game-card-image { width:calc(100% + 46px); margin-top:-23px; }
+        .game-card-image.image-failed { display:none; }
+        @media (max-width:760px) { .game-card-image { height:145px; } }
+
+        @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>The Underground</h1>
+        </header>
+
+        <div class="search-container">
+            <input type="search" id="search-input" placeholder="⌕  Search games by title or description..." class="search-bar" aria-label="Search games">
+        </div>
+        <div class="games-toolbar">
+            <h2>Game library <span id="game-count" style="color:#a78bfa;font-weight:600"></span></h2>
+            <p id="search-status" aria-live="polite">Pick something and jump in.</p>
+        </div>
+
+        <!-- GAME IMAGES: Set data-image="https://your-site.com/image.jpg" on any .game-card below. Leave it empty for no image. -->
+
+
+
+        <section class="games-grid" aria-label="Game library">
+            <div class="game-card" data-game="undertale" data-image="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLEmI7DSgTjHaLL95HeYXMifnSvDddhffGlIoiFSgyNw&s">
+                <h2>Undertale</h2>
+                <p>Explore the Underground, meet its inhabitants, and choose how your story unfolds. Every choice matters in this unique RPG where you can spare or fight your enemies.</p>
+             
+                <button class="btn load-game-btn" data-path="game/index.html">Play Undertale</button>
+            </div>
+
+            <div class="game-card" data-game="bad-time-simulator" data-image="https://preview.redd.it/i-founded-the-perfect-contended-for-thee-sans-banner-share-v0-cg4fsnloivbe1.jpeg?width=640&crop=smart&auto=webp&s=bf1d88ccef0cbce121be9f1bd9f069b00417a96b">
+                <h2>Bad Time Simulator (Sans Fight)</h2>
+                <p>Dodge a relentless barrage in this fan-made Sans battle. Test your reflexes against one of the toughest fights in the Underground.</p>
+                <button class="btn load-game-btn" data-path="games/bad-time-simulator/index.html">Play Bad Time Simulator</button>
+            </div>
+
+            
+
+            <div class="game-card" data-game="ovo" data-image="https://www.culinaryschools.org/kids-games/images/ovo.png">
+                <h2>OvO</h2>
+                <p>A fast-paced platformer where you slide, jump, and wall-jump through challenging levels. Test your precision and reflexes in this addictive skill-based game.</p>
+                <button class="btn load-game-btn" data-path="games/ovo/index.html">Play OvO</button>
+            </div>
+
+            <div class="game-card" data-game="geometry-dash" data-image="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/322170/capsule_616x353.jpg?t=1775300400">
+                <h2>Geometry Dash</h2>
+                <p>A rhythm-based platformer where you jump and fly through dangerous obstacles to the beat of the music. Test your reflexes in this challenging game.</p>
+                <button class="btn load-game-btn" data-path="https://gdwasmfix.onrender.com">Play Geometry Dash</button>
+            </div>
+
+            <div class="game-card" data-game="friday-night-funkin" data-image="https://images.gamebanana.com/img/Webpage/Game/Profile/Background/6a875f46b0e03.png">
+                <h2>Friday Night Funkin'</h2>
+                <p>A rhythm game where you battle against various opponents in musical showdowns. Hit the notes in time to the music to win each week and impress your girlfriend's dad.</p>
+                <button class="btn load-game-btn" data-path="games/friday-night-funkin/index.html">Play Friday Night Funkin'</button>
+            </div>
+
+            <div class="game-card" data-game="friday-night-funkin-qt" data-image="https://i.ytimg.com/vi/A6MS5yk50Wc/maxresdefault.jpg">
+                <h2>Friday Night Funkin vs QT</h2>
+                <p>A rhythm game mod featuring QT as your opponent. Battle against QT in musical showdowns and hit the notes in time to the music to win.</p>
+                <button class="btn load-game-btn" data-path="games/friday-night-funkin-vs-qt/index.html">Play Friday Night Funkin vs QT</button>
+            </div>
+
+            <div class="game-card" data-game="retro-bowl" data-image="https://assets.nintendo.com/image/upload/q_auto/f_auto/store/software/switch/70010000048336/e3c1297d2ec30fe72a657af60c416d10c68a784bc874cf28e19cdf9261956919">
+                <h2>Retro Bowl</h2>
+                <p>Manage your football team and lead them to victory in this retro-style American football game. Call plays, manage your roster, and win championships.</p>
+                <button class="btn load-game-btn" data-path="games/retro-bowl/index.html">Play Retro Bowl</button>
+            </div>
+
+            <div class="game-card" data-game="26.3-wasm" data-image="https://assets.nintendo.com/image/upload/ar_16:9,c_lpad,w_1240/b_white/f_auto/q_auto/store/software/switch/70010000000964/a28a81253e919298beab2295e39a56b7a5140ef15abdb56135655e5c221b2a3a">
+                <h2>Minecraft</h2>
+                <p>Play Minecraft 26.3 WebAssembly version directly in your browser. Build, explore, and survive in this classic Minecraft release.</p>
+                <button class="btn load-game-btn" data-path="games/26.3-wasm/index.html">Play Minecraft 26.3 WASM</button>
+            </div>
+
+            <div class="game-card" data-game="ddlc-web" data-image="https://teamsalvato.com/images/news/20170922-main-capsule-800px.webp">
+                <h2>DDLC Web</h2>
+                <p>Play Doki Doki Literature Club online in this web port</p>
+                <button class="btn load-game-btn" data-path="https://webportprojects-cpu.github.io/ddlc-web/">Play DDLC Web</button>
+            </div>
+
+            <div class="game-card" data-game="bee-swarm-sim" data-image="https://tr.rbxcdn.com/180DAY-3f07641c32d6fd83363ab409a56dab6d/500/280/Image/Jpeg/noFilter">
+                <h2>Bee Swarm Simulator</h2>
+                <p>Play Bee Swarm Simulator online in this web port</p>
+                <button class="btn load-game-btn" data-path="https://webportprojects-cpu.github.io/bee-swarm-sim-web/">Play Bee Swarm Simulator</button>
+            </div>
+
+            <div class="game-card" data-game="fnf-cartman-kyle" data-image="https://images.gamebanana.com/img/ss/mods/66821669e690b.jpg">
+                <h2>FNF: Cartman vs Kyle Mod</h2>
+                <p>Play the Cartman vs Kyle mod for Friday Night Funkin' online</p>
+                <button class="btn load-game-btn" data-path="https://fnf.kdata1.com/cartman-vs-kyle-mod/">Play FNF: Cartman vs Kyle Mod</button>
+            </div>
+           
+            <div class="game-card" data-game="deltarune" data-image="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1671210/capsule_616x353.jpg?t=1782314340">
+                <h2>Deltarune</h2>
+                <p>Play Deltarune, an alternate universe to Undertale</p>
+                <button class="btn load-game-btn" data-path="https://webportprojects-cpu.github.io/Deltarune/">Play Deltarune</button>
+            </div>
+            
+            <div class="game-card" data-game="roblox-2016" data-image="https://assets.userstyles.org/assets_packs/type=style/user_id=4546203/screenshot_8fa8f204-a0dd-47a1-be10-a2e9e36355ac.webp">
+                <h2>Roblox 2016</h2>
+                <p>Literally Roblox 2016 version with a few games multiplayer supported</p>
+                <a class="btn load-game-btn" href="https://monoxide.dev/ronoxide" target="_blank" style="text-decoration: none; display: inline-block;">Play Roblox</a>
+            </div>
+
+            <div class="game-card" data-game="call" data-image="https://miro.medium.com/1*HFY0Q2mZjpqhwGmmwSvP-A.jpeg">
+                <h2>Call</h2>
+                <p>Call your friends!</p>
+                <button class="btn load-game-btn" data-path="games/call/index.html">Play Call</button>
+            </div>
+
+            <div class="game-card" data-game="buckshot" data-image="https://upload.wikimedia.org/wikipedia/en/7/72/Buckshot_Roulette_Cover.jpg?utm_source=en.wikipedia.org&utm_campaign=index&utm_content=original">
+                <h2>Buckshot Roulette</h2>
+                <p>Shoot people.</p>
+                <a class="btn load-game-btn" href="https://www.gamesflare.org/games/indie/2025-2/buckshot-roulette/" target="_blank" style="text-decoration: none; display: inline-block;">Play Buckshot</a>
+            </div>
+
+            <div class="game-card" data-game="cyberpunk" data-image="https://images.gog-statics.com/257b1513b1de9146a3e003b3766f14b0073f0152c4eddc01223dc3585ba50320_product_card_v2_mobile_slider_639.jpg">
+                <h2>Cyberpunk 2077</h2>
+                <p>Literally just Cyberpunk 2077 in your browser</p>
+                <a class="btn load-game-btn" href="https://cyberpunk2077.lol" target="_blank" style="text-decoration: none; display: inline-block;">Play Cyberpunk</a>
+            </div>
+
+            <div class="game-card" data-game="minecraft-sm" data-image="https://stevivor.com/wp-content/uploads/2015/07/minecraft-story-mode-header.webp">
+                <h2>Minecraft Story Mode</h2>
+                <p>Play Minecraft SM</p>
+                <button class="btn load-game-btn" data-path="https://mcsm-web.pages.dev">Play MSM</button>
+            </div>
+
+            <div class="game-card" data-game="meowdoku" data-image="https://play-lh.googleusercontent.com/qsGiOZrr0qmnA9hPmwRv79Qq_xnta6onx8aaf_RGat7b-8sQK269EyS4CIkFbisjEQpfIxmfBXnPYOm5t87uSA=w526-h296-rw">
+                <h2>MeowDoku</h2>
+                <p>Play MeowDoku, a Sodoku game but easier.</p>
+                <button class="btn load-game-btn" data-path="https://webportprojects-cpu.github.io/md/">Play MeowDoku</button>
+            </div>
+
+            <div class="game-card" data-game="blockblast" data-image="https://block-blast.io/data/image/options/block-blast-banner.jpg">
+                <h2>Blockblast</h2>
+                <p>Offbrand Blockblast but works the same.</p>
+                <button class="btn load-game-btn" data-path="https://aayanaqdas.github.io/block_blast/">Play Blockblast</button>
+            </div>
+
+            <div class="game-card" data-game="clustertruck" data-image="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/397950/capsule_616x353.jpg?t=1785515783">
+                <h2>ClusterTruck</h2>
+                <p>Jump over trucks.</p>
+                <button class="btn load-game-btn" data-path="https://wasm.rip/files/ClusterTruck/clustertruck.html">Play ClusterTruck</button>
+            </div>
+
+            <div class="game-card" data-game="amongus" data-image="https://cdn.mos.cms.futurecdn.net/93GAa4wm3z4HbenzLbxWeQ.jpg">
+                <h2>Among Us</h2>
+                <p>Among Us.</p>
+                <a class="btn load-game-btn" href="https://wasm.rip/files/amongus/legacy/" target="_blank" style="text-decoration: none; display: inline-block;">Play Among Us</a>
+            </div>
+
+            <div class="game-card" data-game="peak" data-image="https://peak.wiki.gg/images/thumb/PEAK_KeyArt_1080p.jpg/1200px-PEAK_KeyArt_1080p.jpg?8284f8">
+                <h2>Peak</h2>
+                <p>Climbing game i think</p>
+                <a class="btn load-game-btn" href="https://wasm.rip/files/peak/PEAK.html" target="_blank" style="text-decoration: none; display: inline-block;">Play Peak</a>
+            </div>
+
+            <div class="game-card" data-game="repo" data-image="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3241660/2cff5912c1add2e009eb1c1c630a47ac06cb81a1/capsule_616x353.jpg?t=1791817973">
+                <h2>R.E.P.O.</h2>
+                <p>This fucking repo port took me hours to find.</p>
+                <a class="btn load-game-btn" href="https://repo-brown-zeta.vercel.app" target="_blank" style="text-decoration: none; display: inline-block;">Play R.E.P.O.</a>
+            </div>
+
+            <div class="game-card" data-game="carnage" data-image="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3706810/8f4e6bedab211fc744baae8b44886c7362cdb4c1/header.jpg?t=1791997305">
+                <h2>Electoral Carnage</h2>
+                <p>President game I think.</p>
+                <button class="btn load-game-btn" data-path="games\electoral carnage\index.html">Play Electoral Carnage</button>
+            </div>
+            
+        </section>
+
+        <div id="game-container">
+            <div class="game-controls">
+                <button class="control-btn" id="back-btn" title="Back to Game Selection">←</button>
+                <button class="control-btn" id="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
+            </div>
+            <iframe id="game-frame" src="" title="Game player" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>
+        </div>
+
+        <section class="info-section">
+            <h2>Underground Chat</h2>
+            <p>Connect with fellow fans in real-time chat. Join discussions about games, share theories, and make new friends in our community.</p>
+            <button class="btn load-game-btn" data-path="https://discord-clone--nathanfdipietro.replit.app/login">Join Chat</button>
+            
+        </section>
+
+        <section class="info-section">
+            <h2>About The Underground</h2>
+            <p>The Underground is a fan-made website dedicated to preserving and sharing incredible indie games. All games are loaded from their original sources and are played in their authentic browser ports.</p>
+            <p>This site features a sleek purple-themed interface with embedded gameplay, allowing you to experience these beloved titles without leaving the site.</p>
+            <p>Special thanks to Toby Fox, whose genius has created some of the most beloved games in the indie scene - a true god of game development whose work continues to inspire players worldwide.</p>
+            <p>Undertale is better than Deltarune btw 😊</p>
+            
+        </section>
+
+
+        <section class="info-section">
+            <h2>Suggest a Game</h2>
+            <p>Suggest a game that you think I should add to this site.</p>
+            <button class="btn load-game-btn" data-path="https://docs.google.com/document/d/1v-xFNZ1iWW-5WHU9wTj9CDqatlrFYmFwK_9NcYrRbgs">Suggest a Game</button>
+            
+        </section>
+
+
+        <div class="disclaimer">
+            <strong>Disclaimer:</strong> This is a fan-made project. All game content belongs to their respective creators. This site exists for preservation and fan enjoyment purposes only. Not affiliated with Toby Fox or the official game creators.
+        </div>
+
+        <footer class="footer">
+            <p>&copy; 2026 The Underground. All rights reserved.</p>
+            <p>Not affiliated with Toby Fox or the official game creators.</p>
+        </footer>
+    </div>
+
+    <!-- Auth Modal (moved to body level to ensure it's always on top) -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3 id="auth-title">Login to The Underground</h3>
+            <form id="auth-form">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" required placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required placeholder="Enter password">
+                </div>
+                <div class="form-group">
+                    <label for="profile-pic-file">Profile Picture (optional):</label>
+                    <input type="file" id="profile-pic-file" accept="image/*">
+                    <div id="profile-pic-preview" style="margin-top: 10px; text-align: center;"></div>
+                </div>
+                <button type="submit" class="btn" id="auth-submit">Login</button>
+                <p id="auth-switch">Don't have an account? <span id="switch-to-register">Register here</span></p>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            // Change this to your server URL for global access
+            // For local testing: 'http://localhost:3001'
+            // For global access: deploy your server and put the URL here
+            socketUrl: 'http://localhost:3001'
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                console.log('DOMContentLoaded event fired - JavaScript is running');
+
+                const gameContainer = document.getElementById('game-container');
+                const gameFrame = document.getElementById('game-frame');
+                const backBtn = document.getElementById('back-btn');
+                const fullscreenBtn = document.getElementById('fullscreen-btn');
+                const loadGameBtns = document.querySelectorAll('.load-game-btn');
+                const gamesGrid = document.querySelector('.games-grid');
+
+                // Function to load a game or chat
+                function loadGame(gamePath) {
+                    // Keep scroll at top when loading game
+                    window.scrollTo(0, 0);
+                    gameFrame.src = gamePath;
+                    gameContainer.classList.add('active');
+                    gamesGrid.style.display = 'none';
+                    // Also hide the Underground Chat section when loading chat
+                    const undergroundChatSection = document.querySelector('section.info-section h2');
+                    if (undergroundChatSection && undergroundChatSection.textContent.trim() === 'Underground Chat') {
+                        undergroundChatSection.parentElement.style.display = 'none';
+                    }
+                }
+
+                // Function to go back to game selection
+                function goBack() {
+                    gameFrame.src = ''; // Unload the game to save resources
+                    gameContainer.classList.remove('active');
+                    gamesGrid.style.display = 'grid';
+                    // Also show the Underground Chat section when going back
+                    const undergroundChatSection = document.querySelector('section.info-section h2');
+                    if (undergroundChatSection && undergroundChatSection.textContent.trim() === 'Underground Chat') {
+                        undergroundChatSection.parentElement.style.display = 'block';
+                    }
+                }
+
+                // Function to toggle fullscreen
+                function toggleFullscreen() {
+                    if (!document.fullscreenElement) {
+                        gameContainer.requestFullscreen().catch(err => {
+                            console.log('Error attempting to enable fullscreen: ' + err.message);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                }
+
+                // Event listeners for game buttons
+                loadGameBtns.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const gamePath = this.getAttribute('data-path');
+                        loadGame(gamePath);
+                    });
+                });
+
+                // Event listener for back button
+                backBtn.addEventListener('click', goBack);
+
+                // Event listener for fullscreen button
+                fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+                // Handle escape key to exit fullscreen or go back
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen();
+                        } else if (gameContainer.classList.contains('active')) {
+                            goBack();
+                        }
+                    }
+                });
+
+                // Handle fullscreen change events
+                document.addEventListener('fullscreenchange', function() {
+                    if (document.fullscreenElement) {
+                        fullscreenBtn.title = "Exit Fullscreen";
+                        fullscreenBtn.innerHTML = "✕";
+                    } else {
+                        fullscreenBtn.title = "Toggle Fullscreen";
+                        fullscreenBtn.innerHTML = "⛶";
+                    }
+                });
+
+                // Search functionality
+                const searchInput = document.getElementById('search-input');
+                const gameCards = document.querySelectorAll('.game-card');
+
+                // Game artwork comes directly from each card's data-image HTML attribute.
+                // Example: <div class="game-card" data-game="undertale" data-image="https://example.com/undertale.jpg">
+                function validArtworkUrl(value) {
+                    try {
+                        const parsed = new URL(value, window.location.href);
+                        return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+                    } catch (e) { return false; }
+                }
+                function renderCardArtwork(card) {
+                    const url = (card.getAttribute('data-image') || '').trim();
+                    if (!url || !validArtworkUrl(url)) return;
+                    const image = document.createElement('img');
+                    image.className = 'game-card-image';
+                    image.alt = 'Game artwork for ' + card.querySelector('h2').textContent.trim();
+                    image.loading = 'lazy';
+                    image.referrerPolicy = 'no-referrer';
+                    image.addEventListener('error', () => image.classList.add('image-failed'));
+                    image.addEventListener('load', () => image.classList.remove('image-failed'));
+                    image.src = url;
+                    card.classList.add('has-artwork');
+                    card.insertBefore(image, card.firstChild);
+                }
+                gameCards.forEach(renderCardArtwork);
+
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase().trim();
+
+                    gameCards.forEach(card => {
+                        const gameName = card.querySelector('h2').textContent.toLowerCase();
+                        const gameDesc = card.querySelector('p').textContent.toLowerCase();
+
+                        if (gameName.includes(searchTerm) || gameDesc.includes(searchTerm)) {
+                            card.style.display = '';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                    updateGameCount();
+                });
+
+                // Search status, live result count, and helpful empty state
+                const gameCount = document.getElementById('game-count');
+                const searchStatus = document.getElementById('search-status');
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = '<strong>No games found</strong>Try a different title or search term.';
+                emptyState.hidden = true;
+                gamesGrid.appendChild(emptyState);
+                function updateGameCount() {
+                    const visible = Array.from(gameCards).filter(card => card.style.display !== 'none');
+                    gameCount.textContent = '(' + visible.length + ' of ' + gameCards.length + ')';
+                    searchStatus.textContent = searchInput.value.trim()
+                        ? (visible.length ? 'Showing matches for “' + searchInput.value.trim() + '”.' : 'No matches — try another search.')
+                        : 'Pick something and jump in.';
+                    emptyState.hidden = visible.length !== 0;
+                }
+                updateGameCount();
+
+                // Comment functionality
+                const commentInput = document.getElementById('comment-input');
+                const submitCommentBtn = document.getElementById('submit-comment');
+                const commentList = document.getElementById('comment-list');
+
+                // Create comment element with voting buttons
+                function createCommentElement(comment) {
+                    const commentItem = document.createElement('div');
+                    commentItem.className = 'comment-item';
+                    commentItem.setAttribute('data-id', comment.id);
+
+                    // Voting container
+                    const voteContainer = document.createElement('div');
+                    voteContainer.className = 'comment-votes';
+
+                    const upButton = document.createElement('button');
+                    upButton.className = 'vote-button up';
+                    upButton.innerHTML = '👍';
+                    upButton.title = 'Upvote';
+
+                    const voteCount = document.createElement('span');
+                    voteCount.className = 'vote-count';
+                    voteCount.textContent = comment.upvotes + ' ' + (comment.downvotes > 0 ? '(' + comment.downvotes + ')' : '');
+
+                    const downButton = document.createElement('button');
+                    downButton.className = 'vote-button down';
+                    downButton.innerHTML = '👎';
+                    downButton.title = 'Downvote';
+
+                    voteContainer.appendChild(upButton);
+                    voteContainer.appendChild(voteCount);
+                    voteContainer.appendChild(downButton);
+
+                    // Comment text
+                    const commentParagraph = document.createElement('p');
+                    commentParagraph.textContent = comment.text;
+
+                    // Comment date
+                    const commentDate = document.createElement('span');
+                    commentDate.className = 'comment-date';
+                    commentDate.textContent = comment.date;
+
+                    // Assemble comment item
+                    commentItem.appendChild(voteContainer);
+                    commentItem.appendChild(commentParagraph);
+                    commentItem.appendChild(commentDate);
+
+                    // Add event listeners for voting
+                    upButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        upvoteComment(comment.id);
+                    });
+
+                    downButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        downvoteComment(comment.id);
+                    });
+
+                    return commentItem;
+                }
+
+                // Load saved comments from localStorage
+                function loadComments() {
+                    if (!commentList) return;
+                    const savedComments = JSON.parse(localStorage.getItem('comments') || '[]');
+                    savedComments.forEach(comment => {
+                        const commentElement = createCommentElement(comment);
+                        commentList.insertBefore(commentElement, commentList.firstChild);
+                    });
+                }
+
+                // Load comments on page load
+                loadComments();
+
+                // Upvote a comment
+                function upvoteComment(commentId) {
+                    const savedComments = JSON.parse(localStorage.getItem('comments') || '[]');
+                    const comment = savedComments.find(c => c.id === commentId);
+                    if (comment) {
+                        comment.upvotes += 1;
+                        localStorage.setItem('comments', JSON.stringify(savedComments));
+
+                        // Update the UI
+                        const commentItem = document.querySelector('.comment-item[data-id="' + commentId + '"]');
+                        if (commentItem) {
+                            const voteCount = commentItem.querySelector('.vote-count');
+                            voteCount.textContent = comment.upvotes + ' ' + (comment.downvotes > 0 ? '(' + comment.downvotes + ')' : '');
+                        }
+                    }
+                }
+
+                // Downvote a comment
+                function downvoteComment(commentId) {
+                    const savedComments = JSON.parse(localStorage.getItem('comments') || '[]');
+                    const comment = savedComments.find(c => c.id === commentId);
+                    if (comment) {
+                        comment.downvotes += 1;
+                        localStorage.setItem('comments', JSON.stringify(savedComments));
+
+                        // Update the UI
+                        const commentItem = document.querySelector('.comment-item[data-id="' + commentId + '"]');
+                        if (commentItem) {
+                            const voteCount = commentItem.querySelector('.vote-count');
+                            voteCount.textContent = comment.upvotes + ' ' + (comment.downvotes > 0 ? '(' + comment.downvotes + ')' : '');
+                        }
+                    }
+                }
+
+                if (submitCommentBtn && commentInput && commentList) submitCommentBtn.addEventListener('click', function() {
+                    const commentText = commentInput.value.trim();
+                    if (commentText) {
+                        // Create comment object
+                        const comment = {
+                            id: Date.now() + Math.random(),
+                            text: commentText,
+                            date: new Date().toLocaleString(),
+                            upvotes: 0,
+                            downvotes: 0
+                        };
+
+                        // Save to localStorage
+                        const savedComments = JSON.parse(localStorage.getItem('comments') || '[]');
+                        savedComments.push(comment);
+                        localStorage.setItem('comments', JSON.stringify(savedComments));
+
+                        // Add to UI
+                        const commentItem = createCommentElement(comment);
+                        commentList.insertBefore(commentItem, commentList.firstChild);
+
+                        commentInput.value = '';
+                    }
+                });
+
+                // Clear all suggestions
+                const clearSuggestionsBtn = document.getElementById('clear-suggestions');
+                if (clearSuggestionsBtn && commentList) clearSuggestionsBtn.addEventListener('click', function() {
+                    if (confirm('Are you sure you want to clear all suggestions? This action cannot be undone.')) {
+                        // Clear localStorage
+                        localStorage.removeItem('comments');
+
+                        // Clear UI
+                        commentList.innerHTML = '';
+
+                        // Optional: Show confirmation
+                        alert('All suggestions have been cleared.');
+                    }
+                });
+
+                // Chat and account features need a matching chat interface and backend.
+                // The game launcher, search, and local suggestions work independently.
+                console.info('The Underground initialized.');
+            } catch (error) {
+            console.error('Error in DOMContentLoaded handler:', error);
+            alert('An error occurred while initializing the website. Please check the console for details.');
+        }
+    });
+    </script>
+
+</body>
+</html>
