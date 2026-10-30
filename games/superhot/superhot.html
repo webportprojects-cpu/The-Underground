@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>SUPERHOT</title>
+
+<style>
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+#unity-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: #000;
+}
+
+#unity-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #000;
+}
+
+/* =========================================================
+   RED LOADING SCREEN
+   ========================================================= */
+
+#unity-loading-bar {
+    position: absolute;
+    z-index: 100;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: block;
+    width: 420px;
+    max-width: 90vw;
+    text-align: center;
+}
+
+#unity-loading-title {
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 6px;
+    margin-bottom: 20px;
+}
+
+#unity-progress-bar-empty {
+    width: 100%;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#unity-progress-bar-full {
+    width: 0%;
+    height: 100%;
+    background: #e00000;
+    box-shadow:
+        0 0 8px rgba(255, 0, 0, 0.8),
+        0 0 18px rgba(255, 0, 0, 0.4);
+    transition: width 0.12s linear;
+}
+
+#unity-loading-status {
+    margin-top: 14px;
+    font-size: 14px;
+    color: #fff;
+    font-family: monospace;
+}
+
+#unity-loading-details {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #888;
+    font-family: monospace;
+}
+
+#unity-error {
+    position: absolute;
+    z-index: 200;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    width: 90%;
+    max-width: 800px;
+    padding: 14px;
+    box-sizing: border-box;
+    background: #700000;
+    border: 1px solid #ff3333;
+    color: #fff;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+#unity-fullscreen-button {
+    position: absolute;
+    z-index: 110;
+    right: 15px;
+    bottom: 15px;
+    padding: 8px 14px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid #555;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#unity-fullscreen-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+</style>
+</head>
+
+<body>
+
+<div id="unity-container">
+
+    <canvas
+        id="unity-canvas"
+        tabindex="-1">
+    </canvas>
+
+    <div id="unity-loading-bar">
+
+        <div id="unity-loading-title">
+            SUPERHOT
+        </div>
+
+        <div id="unity-progress-bar-empty">
+            <div id="unity-progress-bar-full"></div>
+        </div>
+
+        <div id="unity-loading-status">
+            Starting...
+        </div>
+
+        <div id="unity-loading-details">
+            0%
+        </div>
+
+    </div>
+
+    <div id="unity-error"></div>
+
+    <div id="unity-fullscreen-button">
+        FULLSCREEN
+    </div>
+
+</div>
+
+<script>
+
+/* =========================================================
+   CONFIG
+   ========================================================= */
+
+const REPO =
+    "jmhq20120212-cmd/SuperHot-WebPort";
+
+const BRANCH =
+    "main";
+
+const CDN_BASES = [
+
+    `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/`,
+
+    `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`
+
+];
+
+const DATA_MANIFEST =
+    "Build/data-manifest.json";
+
+const FRAMEWORK =
+    "Build/SuperHotWebPort.framework.js.gz";
+
+const WASM =
+    "Build/SuperHotWebPort.wasm.gz";
+
+const LOADER =
+    "Build/SuperHotWebPort.loader.js";
+
+const EMBEDDED_RESOURCES =
+    "Build/embedded-resources.js";
+
+
+/*
+ * Your DATA consists of 56 compressed parts.
+ */
+const DATA_PART_COUNT = 56;
+
+
+/*
+ * Keep network memory low.
+ */
+const DOWNLOAD_CONCURRENCY = 2;
+
+
+/* =========================================================
+   DOM
+   ========================================================= */
+
+const canvas =
+    document.getElementById(
+        "unity-canvas"
+    );
+
+const loadingBar =
+    document.getElementById(
+        "unity-loading-bar"
+    );
+
+const progressBar =
+    document.getElementById(
+        "unity-progress-bar-full"
+    );
+
+const loadingStatus =
+    document.getElementById(
+        "unity-loading-status"
+    );
+
+const loadingDetails =
+    document.getElementById(
+        "unity-loading-details"
+    );
+
+const errorBox =
+    document.getElementById(
+        "unity-error"
+    );
+
+const fullscreenButton =
+    document.getElementById(
+        "unity-fullscreen-button"
+    );
+
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+function setProgress(
+    percent,
+    status,
+    details
+) {
+
+    percent =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                percent
+            )
+        );
+
+    progressBar.style.width =
+        percent.toFixed(1) + "%";
+
+    if (status !== undefined) {
+        loadingStatus.textContent =
+            status;
+    }
+
+    if (details !== undefined) {
+        loadingDetails.textContent =
+            details;
+    }
+}
+
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+function showError(error) {
+
+    console.error(
+        error
+    );
+
+    errorBox.textContent =
+        "SUPERHOT failed to load:\n\n" +
+        (
+            error &&
+            error.message
+                ? error.message
+                : String(error)
+        );
+
+    errorBox.style.display =
+        "block";
+
+    loadingStatus.textContent =
+        "LOAD ERROR";
+
+}
+
+
+/* =========================================================
+   FORMAT
+   ========================================================= */
+
+function mb(bytes) {
+
+    return (
+        bytes /
+        1024 /
+        1024
+    ).toFixed(1) +
+    " MB";
+
+}
+
+
+/* =========================================================
+   FETCH
+   ========================================================= */
+
+async function fetchResponse(
+    path
+) {
+
+    let lastError = null;
+
+    for (
+        const base of CDN_BASES
+    ) {
+
+        const url =
+            base + path;
+
+        try {
+
+            const response =
+                await fetch(
+                    url,
+                    {
+                        cache:
+                            "force-cache"
+                    }
+                );
+
+            if (
+                response.ok &&
+                response.body
+            ) {
+
+                return response;
+
+            }
+
+            lastError =
+                new Error(
+                    `HTTP ${response.status}: ${url}`
+                );
+
+        } catch (
+            error
+        ) {
+
+            lastError =
+                error;
+
+        }
+
+    }
+
+    throw (
+        lastError ||
+        new Error(
+            "Unable to fetch " +
+            path
+        )
+    );
+}
+
+
+/* =========================================================
+   SMALL FILE FETCH
+   ========================================================= */
+
+async function fetchArrayBuffer(
+    path
+) {
+
+    const response =
+        await fetchResponse(
+            path
+        );
+
+    return await response.arrayBuffer();
+}
+
+
+/* =========================================================
+   DATA PART LIST
+   ========================================================= */
+
+async function getDataParts() {
+
+    try {
+
+        const response =
+            await fetch(
+                CDN_BASES[0] +
+                DATA_MANIFEST,
+                {
+                    cache:
+                        "force-cache"
+                }
+            );
+
+        if (
+            response.ok
+        ) {
+
+            const manifest =
+                await response.json();
+
+            let parts = null;
+
+            if (
+                Array.isArray(
+                    manifest.parts
+                )
+            ) {
+
+                parts =
+                    manifest.parts;
+
+            } else if (
+                Array.isArray(
+                    manifest.files
+                )
+            ) {
+
+                parts =
+                    manifest.files;
+
+            } else if (
+                Array.isArray(
+                    manifest
+                )
+            ) {
+
+                parts =
+                    manifest;
+
+            }
+
+            if (
+                parts &&
+                parts.length
+            ) {
+
+                return parts.map(
+                    part => {
+
+                        if (
+                            typeof part ===
+                            "string"
+                        ) {
+
+                            return part;
+
+                        }
+
+                        return (
+                            part.path ||
+                            part.file ||
+                            part.url ||
+                            part.name
+                        );
+
+                    }
+                ).filter(Boolean);
+
+            }
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "Could not read data manifest:",
+            error
+        );
+
+    }
+
+
+    /*
+     * Fallback:
+     *
+     * part-000.bin
+     * part-001.bin
+     * ...
+     * part-055.bin
+     */
+
+    const parts = [];
+
+    for (
+        let i = 0;
+        i < DATA_PART_COUNT;
+        i++
+    ) {
+
+        parts.push(
+            `Build/data-chunks/part-${String(i).padStart(3, "0")}.bin`
+        );
+
+    }
+
+    return parts;
+}
+
+
+/* =========================================================
+   STREAM COMPRESSED DATA
+   ========================================================= */
+
+/*
+ * The important part:
+ *
+ * We never create:
+ *
+ *     56 × ArrayBuffer
+ *
+ * Instead each part is fetched and immediately
+ * passed into the ReadableStream.
+ *
+ * The stream then goes directly into gzip
+ * decompression.
+ */
+
+function createCompressedStream(
+    paths
+) {
+
+    let currentPart =
+        0;
+
+    let reader =
+        null;
+
+    let downloaded =
+        0;
+
+    let lastPart =
+        -1;
+
+
+    return new ReadableStream({
+
+        async pull(
+            controller
+        ) {
+
+            try {
+
+                while (true) {
+
+                    /*
+                     * Open the next part.
+                     */
+                    if (
+                        reader === null
+                    ) {
+
+                        if (
+                            currentPart >=
+                            paths.length
+                        ) {
+
+                            controller.close();
+
+                            return;
+
+                        }
+
+                        const partIndex =
+                            currentPart;
+
+                        const response =
+                            await fetchResponse(
+                                paths[
+                                    partIndex
+                                ]
+                            );
+
+
+                        reader =
+                            response.body
+                                .getReader();
+
+
+                        currentPart =
+                            partIndex + 1;
+
+
+                        if (
+                            lastPart !==
+                            partIndex
+                        ) {
+
+                            lastPart =
+                                partIndex;
+
+                            setProgress(
+                                (
+                                    partIndex /
+                                    paths.length
+                                ) * 55,
+                                `Downloading DATA ${partIndex + 1}/${paths.length}`,
+                                `${partIndex + 1} of ${paths.length} parts`
+                            );
+
+                        }
+
+                    }
+
+
+                    const result =
+                        await reader.read();
+
+
+                    /*
+                     * Current part finished.
+                     */
+                    if (
+                        result.done
+                    ) {
+
+                        reader =
+                            null;
+
+                        continue;
+
+                    }
+
+
+                    if (
+                        result.value
+                    ) {
+
+                        downloaded +=
+                            result.value.byteLength;
+
+
+                        /*
+                         * DATA download occupies
+                         * the first 55% of the bar.
+                         */
+                        setProgress(
+                            Math.min(
+                                55,
+                                (
+                                    currentPart -
+                                    1 +
+                                    0.5
+                                ) /
+                                paths.length *
+                                55
+                            ),
+                            `Streaming DATA ${currentPart}/${paths.length}`,
+                            `${mb(downloaded)} downloaded`
+                        );
+
+
+                        controller.enqueue(
+                            result.value
+                        );
+
+
+                        return;
+
+                    }
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                controller.error(
+                    error
+                );
+
+            }
+
+        },
+
+        cancel(
+            reason
+        ) {
+
+            if (
+                reader
+            ) {
+
+                reader.cancel(
+                    reason
+                ).catch(
+                    () => {}
+                );
+
+            }
+
+        }
+
+    });
+}
+
+
+/* =========================================================
+   GZIP + DATA
+   ========================================================= */
+
+async function loadData() {
+
+    if (
+        typeof DecompressionStream ===
+        "undefined"
+    ) {
+
+        throw new Error(
+            "This browser does not support streaming gzip decompression."
+        );
+
+    }
+
+
+    const paths =
+        await getDataParts();
+
+
+    console.log(
+        "[SUPERHOT] DATA parts:",
+        paths.length
+    );
+
+
+    setProgress(
+        0,
+        "Starting DATA stream...",
+        `${paths.length} compressed parts`
+    );
+
+
+    /*
+     * Compressed stream:
+     *
+     * part000 → part001 → ... → part055
+     */
+    const compressedStream =
+        createCompressedStream(
+            paths
+        );
+
+
+    /*
+     * Direct streaming gzip decompression.
+     */
+    const decompressedStream =
+        compressedStream.pipeThrough(
+            new DecompressionStream(
+                "gzip"
+            )
+        );
+
+
+    setProgress(
+        55,
+        "Preparing game data...",
+        "Streaming gzip decompression"
+    );
+
+
+    /*
+     * Unity requires a URL for dataUrl.
+     *
+     * Response.blob() creates the final Blob
+     * without first creating a huge ArrayBuffer.
+     */
+    const dataBlob =
+        await new Response(
+            decompressedStream
+        ).blob();
+
+
+    console.log(
+        "[SUPERHOT] Decompressed DATA:",
+        mb(dataBlob.size)
+    );
+
+
+    setProgress(
+        60,
+        "Game data ready.",
+        `${mb(dataBlob.size)} decompressed`
+    );
+
+
+    return URL.createObjectURL(
+        dataBlob
+    );
+}
+
+
+/* =========================================================
+   ENGINE FILES
+   ========================================================= */
+
+async function loadEngineFiles() {
+
+    setProgress(
+        61,
+        "Loading engine...",
+        "Downloading framework and WASM"
+    );
+
+
+    const [
+        frameworkGz,
+        wasmGz
+    ] =
+        await Promise.all([
+
+            fetchArrayBuffer(
+                FRAMEWORK
+            ),
+
+            fetchArrayBuffer(
+                WASM
+            )
+
+        ]);
+
+
+    setProgress(
+        63,
+        "Preparing engine...",
+        "Decompressing framework"
+    );
+
+
+    const frameworkStream =
+        new Blob(
+            [frameworkGz]
+        )
+        .stream()
+        .pipeThrough(
+            new DecompressionStream(
+                "gzip"
+            )
+        );
+
+
+    const wasmStream =
+        new Blob(
+            [wasmGz]
+        )
+        .stream()
+        .pipeThrough(
+            new DecompressionStream(
+                "gzip"
+            )
+        );
+
+
+    const [
+        frameworkBuffer,
+        wasmBuffer
+    ] =
+        await Promise.all([
+
+            new Response(
+                frameworkStream
+            ).arrayBuffer(),
+
+            new Response(
+                wasmStream
+            ).arrayBuffer()
+
+        ]);
+
+
+    setProgress(
+        67,
+        "Engine ready.",
+        "Framework + WASM loaded"
+    );
+
+
+    return {
+
+        frameworkUrl:
+            URL.createObjectURL(
+                new Blob(
+                    [frameworkBuffer],
+                    {
+                        type:
+                            "application/javascript"
+                    }
+                )
+            ),
+
+        wasmUrl:
+            URL.createObjectURL(
+                new Blob(
+                    [wasmBuffer],
+                    {
+                        type:
+                            "application/wasm"
+                    }
+                )
+            )
+
+    };
+}
+
+
+/* =========================================================
+   EMBEDDED RESOURCES
+   ========================================================= */
+
+async function loadEmbeddedResources() {
+
+    try {
+
+        const buffer =
+            await fetchArrayBuffer(
+                EMBEDDED_RESOURCES
+            );
+
+
+        const script =
+            document.createElement(
+                "script"
+            );
+
+
+        script.src =
+            URL.createObjectURL(
+                new Blob(
+                    [buffer],
+                    {
+                        type:
+                            "application/javascript"
+                    }
+                )
+            );
+
+
+        await new Promise(
+            resolve => {
+
+                script.onload =
+                    resolve;
+
+                script.onerror =
+                    resolve;
+
+                document.body.appendChild(
+                    script
+                );
+
+            }
+        );
+
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[SUPERHOT] embedded-resources.js failed:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   UNITY LOADER
+   ========================================================= */
+
+async function loadUnityLoader() {
+
+    setProgress(
+        68,
+        "Loading Unity...",
+        "Loading Unity loader"
+    );
+
+
+    const buffer =
+        await fetchArrayBuffer(
+            LOADER
+        );
+
+
+    const script =
+        document.createElement(
+            "script"
+        );
+
+
+    script.src =
+        URL.createObjectURL(
+            new Blob(
+                [buffer],
+                {
+                    type:
+                        "application/javascript"
+                }
+            )
+        );
+
+
+    await new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            script.onload =
+                resolve;
+
+            script.onerror =
+                () => {
+
+                    reject(
+                        new Error(
+                            "Unity loader failed to load."
+                        )
+                    );
+
+                };
+
+            document.body.appendChild(
+                script
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+
+async function boot() {
+
+    /*
+     * Make absolutely sure the red loading
+     * screen is visible immediately.
+     */
+    loadingBar.style.display =
+        "block";
+
+    loadingBar.style.visibility =
+        "visible";
+
+
+    setProgress(
+        0,
+        "Starting SUPERHOT...",
+        "Initializing"
+    );
+
+
+    try {
+
+        /*
+         * -------------------------------------------------
+         * DATA
+         * -------------------------------------------------
+         */
+
+        const dataUrl =
+            await loadData();
+
+
+        /*
+         * -------------------------------------------------
+         * ENGINE
+         * -------------------------------------------------
+         */
+
+        const engine =
+            await loadEngineFiles();
+
+
+        /*
+         * -------------------------------------------------
+         * EMBEDDED RESOURCES
+         * -------------------------------------------------
+         */
+
+        setProgress(
+            68,
+            "Loading resources...",
+            "StreamingAssets"
+        );
+
+
+        await loadEmbeddedResources();
+
+
+        /*
+         * -------------------------------------------------
+         * UNITY LOADER
+         * -------------------------------------------------
+         */
+
+        await loadUnityLoader();
+
+
+        /*
+         * -------------------------------------------------
+         * UNITY CONFIG
+         * -------------------------------------------------
+         */
+
+        const config = {
+
+            dataUrl:
+                dataUrl,
+
+            frameworkUrl:
+                engine.frameworkUrl,
+
+            codeUrl:
+                engine.wasmUrl,
+
+            streamingAssetsUrl:
+                CDN_BASES[1] +
+                "StreamingAssets",
+
+            companyName:
+                "SUPERHOT_Team",
+
+            productName:
+                "SUPERHOT",
+
+            productVersion:
+                "1.0.21",
+
+            showBanner:
+                function (
+                    message,
+                    type
+                ) {
+
+                    console.log(
+                        "[Unity]",
+                        type,
+                        message
+                    );
+
+                    if (
+                        type ===
+                        "error"
+                    ) {
+
+                        showError(
+                            message
+                        );
+
+                    }
+
+                }
+
+        };
+
+
+        /*
+         * -------------------------------------------------
+         * CREATE UNITY
+         * -------------------------------------------------
+         */
+
+        setProgress(
+            70,
+            "Starting SUPERHOT...",
+            "Initializing Unity"
+        );
+
+
+        const unityInstance =
+            await createUnityInstance(
+                canvas,
+                config,
+                function (
+                    progress
+                ) {
+
+                    /*
+                     * Unity startup uses the
+                     * remaining 30%.
+                     */
+                    const percent =
+                        70 +
+                        progress *
+                        30;
+
+
+                    setProgress(
+                        percent,
+                        "Starting SUPERHOT...",
+                        `${(
+                            progress *
+                            100
+                        ).toFixed(0)}%`
+                    );
+
+                }
+            );
+
+
+        console.log(
+            "[SUPERHOT] Unity started."
+        );
+
+
+        /*
+         * Hide loading screen.
+         */
+        loadingBar.style.display =
+            "none";
+
+
+        /*
+         * Fullscreen.
+         */
+        fullscreenButton.onclick =
+            function () {
+
+                unityInstance.SetFullscreen(
+                    1
+                );
+
+            };
+
+
+    } catch (
+        error
+    ) {
+
+        showError(
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+window.addEventListener(
+    "DOMContentLoaded",
+    boot
+);
+
+</script>
+
+</body>
+</html>
