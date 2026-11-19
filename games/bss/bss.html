@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <title>Google Docs</title>
+    <link rel="icon" href="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico">
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0d274d;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        user-select: none;
+      }
+
+      #unity-canvas {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        outline: none;
+        background: #0d274d;
+      }
+
+      /* Top-left floating HUD controls */
+      #hud-bar {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        display: flex;
+        gap: 6px;
+        z-index: 9999;
+        opacity: 0.35;
+        transition: opacity 0.2s ease;
+      }
+
+      #hud-bar:hover {
+        opacity: 1;
+      }
+
+      .hud-btn {
+        background: rgba(15, 23, 42, 0.88);
+        color: #facc15;
+        border: 1.5px solid #facc15;
+        border-radius: 6px;
+        padding: 5px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        transition: transform 0.1s ease, background 0.15s ease, color 0.15s ease;
+      }
+
+      .hud-btn:hover {
+        background: #facc15;
+        color: #0f172a;
+      }
+
+      .hud-btn:active {
+        transform: scale(0.96);
+      }
+
+      /* Loading Overlay */
+      #loader-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at center, #2563eb 0%, #0f172a 100%);
+        color: #ffffff;
+        z-index: 20;
+        transition: opacity 0.35s ease;
+        padding: 20px;
+        text-align: center;
+      }
+
+      #loader-title {
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+        margin-bottom: 6px;
+        color: #facc15;
+      }
+
+      #loader-sub {
+        font-size: 13px;
+        color: #cbd5e1;
+        margin-bottom: 22px;
+      }
+
+      #progress-track {
+        width: min(440px, 84vw);
+        height: 18px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 2px solid #facc15;
+        border-radius: 999px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      }
+
+      #progress-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #facc15, #4ade80);
+        transition: width 0.12s ease-out;
+      }
+
+      #loader-status {
+        margin-top: 10px;
+        font-size: 12px;
+        font-family: monospace;
+        color: #e2e8f0;
+      }
+
+      #error-box {
+        display: none;
+        margin-top: 14px;
+        padding: 12px 16px;
+        max-width: min(500px, 88vw);
+        background: #dc2626;
+        color: #fff;
+        border-radius: 8px;
+        font-size: 13px;
+        text-align: center;
+        line-height: 1.4;
+      }
+
+      #retry-btn {
+        display: none;
+        margin-top: 10px;
+        background: #facc15;
+        color: #0f172a;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 14px;
+        font-weight: 700;
+        font-size: 12px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud-bar">
+      <button class="hud-btn" id="btn-ab" onclick="openCloaked()">about:blank</button>
+      <button class="hud-btn" id="btn-fs" onclick="toggleFullscreen()">Fullscreen</button>
+    </div>
+
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+    <div id="loader-overlay">
+      <div id="loader-title">Bee Swarm Simulator</div>
+      <div id="loader-sub">Original game &amp; assets by Onett &bull; WebGL Port</div>
+      <div id="progress-track">
+        <div id="progress-fill"></div>
+      </div>
+      <div id="loader-status">Initializing...</div>
+      <div id="error-box"></div>
+      <button id="retry-btn" onclick="location.reload()">Retry</button>
+    </div>
+
+    <script>
+      const REPO_ROOT = "https://cdn.jsdelivr.net/gh/AlexBoops/BeeSwarmSimWeb@main";
+      const CDN_BUILD = REPO_ROOT + "/Build";
+      const PART_COUNT = 5; // part0 through part4
+
+      const canvas = document.getElementById("unity-canvas");
+      const overlay = document.getElementById("loader-overlay");
+      const progressFill = document.getElementById("progress-fill");
+      const statusText = document.getElementById("loader-status");
+      const errorBox = document.getElementById("error-box");
+      const retryBtn = document.getElementById("retry-btn");
+      let unityInstanceRef = null;
+
+      // 1. Web Audio Auto-Unlock for Sound Effects
+      (function () {
+        const audioCtxs = [];
+        const OrigAudioContext = window.AudioContext || window.webkitAudioContext;
+        if (OrigAudioContext) {
+          const PatchedAudioContext = function (opts) {
+            const ctx = new OrigAudioContext(opts);
+            audioCtxs.push(ctx);
+            return ctx;
+          };
+          PatchedAudioContext.prototype = OrigAudioContext.prototype;
+          window.AudioContext = PatchedAudioContext;
+          if (window.webkitAudioContext) window.webkitAudioContext = PatchedAudioContext;
+
+          const resumeAll = () => {
+            audioCtxs.forEach((c) => {
+              if (c && c.state === "suspended") c.resume().catch(() => {});
+            });
+          };
+          window.addEventListener("pointerdown", resumeAll, { passive: true });
+          window.addEventListener("keydown", resumeAll, { passive: true });
+        }
+      })();
+
+      // 2. Pointer Lock Error Guard
+      (function () {
+        const origLock = Element.prototype.requestPointerLock || function () {};
+        Element.prototype.requestPointerLock = function () {
+          try {
+            const res = origLock.apply(this, arguments);
+            if (res && typeof res.catch === "function") res.catch(() => {});
+            return res;
+          } catch (e) {}
+        };
+      })();
+
+      // 3. Intercept Relative StreamingAssets / SFX Requests to Resolve on jsDelivr
+      (function () {
+        const origFetch = window.fetch;
+        window.fetch = function (input, init) {
+          if (typeof input === "string" && !/^(https?:|blob:|data:)/i.test(input)) {
+            const clean = input.replace(/^\.?\//, "");
+            input = REPO_ROOT + "/" + clean.split("/").map(encodeURIComponent).join("/");
+          }
+          return origFetch.call(this, input, init);
+        };
+
+        const origOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (method, url) {
+          if (typeof url === "string" && !/^(https?:|blob:|data:)/i.test(url)) {
+            const clean = url.replace(/^\.?\//, "");
+            arguments[1] = REPO_ROOT + "/" + clean.split("/").map(encodeURIComponent).join("/");
+          }
+          return origOpen.apply(this, arguments);
+        };
+      })();
+
+      // 4. HUD Actions (about:blank Cloaker & Fullscreen)
+      function openCloaked() {
+        const btn = document.getElementById("btn-ab");
+        const win = window.open("about:blank", "_blank");
+        if (!win || win.closed) {
+          btn.textContent = "Allow Popups!";
+          setTimeout(() => { btn.textContent = "about:blank"; }, 3000);
+          return;
+        }
+        const clone = document.documentElement.cloneNode(true);
+        const ab = clone.querySelector("#btn-ab");
+        if (ab) ab.remove();
+        win.document.open();
+        win.document.write("<!DOCTYPE html>\n" + clone.outerHTML);
+        win.document.close();
+      }
+
+      function toggleFullscreen() {
+        if (unityInstanceRef) {
+          unityInstanceRef.SetFullscreen(1);
+          return;
+        }
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+
+      // 5. Parallel Data Chunk Fetcher & Unity Boot
+      function showError(msg) {
+        errorBox.style.display = "block";
+        errorBox.textContent = msg;
+        retryBtn.style.display = "inline-block";
+      }
+
+      async function fetchMergedDataBlobUrl() {
+        let completed = 0;
+        const tasks = [];
+
+        for (let i = 0; i < PART_COUNT; i++) {
+          const url = `${CDN_BUILD}/${encodeURIComponent("Bee Swarm Simulator.data.unityweb.part" + i)}`;
+          tasks.push(
+            fetch(url).then(async (res) => {
+              if (!res.ok) throw new Error(`Chunk part${i} failed: HTTP ${res.status}`);
+              const buf = await res.arrayBuffer();
+              completed++;
+              progressFill.style.width = `${(completed / PART_COUNT) * 60}%`;
+              statusText.textContent = `Downloading game data (${completed}/${PART_COUNT})...`;
+              return buf;
+            })
+          );
+        }
+
+        const buffers = await Promise.all(tasks);
+        const blob = new Blob(buffers, { type: "application/octet-stream" });
+        return URL.createObjectURL(blob);
+      }
+
+      const loaderScript = document.createElement("script");
+      loaderScript.src = `${CDN_BUILD}/${encodeURIComponent("Bee Swarm Simulator.loader.js")}`;
+      loaderScript.onload = async () => {
+        try {
+          statusText.textContent = `Downloading game data (0/${PART_COUNT})...`;
+          const mergedDataUrl = await fetchMergedDataBlobUrl();
+          statusText.textContent = "Starting WebGL engine...";
+
+          const config = {
+            arguments: [],
+            dataUrl: mergedDataUrl,
+            frameworkUrl: `${CDN_BUILD}/${encodeURIComponent("Bee Swarm Simulator.framework.js.unityweb")}`,
+            codeUrl: `${CDN_BUILD}/${encodeURIComponent("Bee Swarm Simulator.wasm.unityweb")}`,
+            streamingAssetsUrl: `${REPO_ROOT}/StreamingAssets`,
+            companyName: "BSSPort",
+            productName: "Bee Swarm Simulator",
+            productVersion: "0.1.0",
+            showBanner: (msg, type) => {
+              if (type === "error") showError(msg);
+            },
+          };
+
+          unityInstanceRef = await createUnityInstance(canvas, config, (p) => {
+            const pct = Math.round(60 + p * 40);
+            progressFill.style.width = `${pct}%`;
+            statusText.textContent = `Compiling WebGL (${pct}%)...`;
+          });
+
+          URL.revokeObjectURL(mergedDataUrl);
+          overlay.style.opacity = "0";
+          setTimeout(() => overlay.remove(), 350);
+          canvas.focus();
+        } catch (err) {
+          showError(err.message || String(err));
+        }
+      };
+      loaderScript.onerror = () => showError("Failed to load Unity loader script from jsDelivr.");
+      document.body.appendChild(loaderScript);
+    </script>
+  </body>
+</html>
